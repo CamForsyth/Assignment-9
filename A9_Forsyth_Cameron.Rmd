@@ -1,0 +1,102 @@
+---
+title: "Assignment-9"
+author: "Cameron Forsyth"
+date: "2023-03-15"
+output: html_document
+---
+
+[My Github Link] https://github.com/CamForsyth/Assignment-9
+
+#Loading Libraries
+ 
+```{r}
+library(doParallel)
+library(parallel)
+library(foreach)
+```
+ 
+#Running the detectCores() function from the parallel package
+```{r}
+detectCores()
+```
+
+The number of cores/threads in my system is 8.  
+
+
+#Writing a standard for loop 4,000 times, and each time calculating the mean of 100,000 random numbers from a normal distribution with mean of 10 and standard deviation of 3. Adjusting the code to track the amount of time it takes to run. 
+
+```{r}
+start_time_serial<-Sys.time()
+
+for (i in 1:4000) {
+  sample <- rnorm(100000, mean= 10, sd = 3)
+  mean_sample<- mean(sample)
+}
+
+end_time_serial <- Sys.time()
+
+run_time_serial <- difftime(end_time_serial, start_time_serial, units = "secs")
+
+cat("This for loop took", as.numeric(run_time_serial), "seconds to run.")
+```
+
+
+#Predicting how much faster a multi-threaded program will run compared to a serial program, based on the number of threads you have
+
+#We know we have 8 cores. Using Amdahl's law we can calculate how much faster our multithread code will run compared to our serial code. 
+```{r}
+
+P<-1
+N<- 8
+
+"Where P is the fraction of the program that can be parallelized and N is the number of threads." 
+
+Speedup = 1 / (1 - P + P/N)
+
+"Theoretically we can speed up our program 8 times if we use the 8 threads available to us"
+
+Theoretical_time = (run_time_serial/ Speedup)
+
+"The serial code took 26.11022 seconds to run. If we used the multithread code it would take 3.264 seconds to run."
+
+```
+
+#Now I will modify the for loop to run the same code in parallel, instead of running each of the 4,000 loops in order. I have included return(NULL) so that the code does not print any output. 
+
+```{r}
+# First I will find the number of cores on my computer and assign them the variable Cores
+
+Cores<- parallel::makeCluster(detectCores())
+
+# Then I will activate multi-threading by specifying the number of cores.
+
+doParallel::registerDoParallel(Cores)
+
+
+start_time_parallel<- Sys.time()
+
+parallel_resul<-foreach(i=1:4000, .combine=rbind) %dopar% {
+  sample <- rnorm(100000, mean= 10, sd = 3)
+  mean_sample<- mean(sample)
+  return(NULL)
+}
+
+# Lastly I will deactivate multi-threading
+
+parallel::stopCluster(Cores)
+  
+end_time_parallel<-Sys.time()
+
+run_time_parallel <- difftime(end_time_parallel, start_time_parallel, units = "secs")
+
+cat("This for loop ran in parallel took", as.numeric(run_time_parallel), "seconds to run.")
+```
+
+#Comparing the run-time for my parallel loop with the run-time for my serial loop and the theoretical run-time I calculated for the parallel loop based on the number of cores in your computer. 
+
+```{r}
+cat("My run-time for the parallel loop was", as.numeric(run_time_parallel), "seconds, my serial loop was", as.numeric(run_time_serial), "and my theoretical run-time that I calculated was", as.numeric(Theoretical_time))
+
+```
+
+The theoretical is shorter than the actual run-time of my parallel program, because I am choosing to use all 8 cores rather than just 7 and leaving one available for other processing activities. In addition to this the theoretical run-time assumes that the program can achieve perfect parallelization and that there is no overhead involved with running the non-parallelizable code (i.e. dividing tasks). Therefore the practical run-time may be slightly longer than the calculated theoretical.
